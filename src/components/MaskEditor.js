@@ -137,7 +137,7 @@ function MaskEditor() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [imageSize, selectedShapeIndex, isDrawing, shapes]);
+  }, [imageSize, selectedShapeIndex, isDrawing, shapes, moveSelectedShape, resizeSelectedShape]);
 
   const moveSelectedShape = (dx, dy) => {
     if (selectedShapeIndex === null) return;

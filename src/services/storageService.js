@@ -1,128 +1,80 @@
-import { Storage } from '@google-cloud/storage';
+// Mock Storage Service for Browser Environment
+// In production, these calls would go to a backend API that interfaces with Google Cloud Storage
 
 const BUCKET_NAME = 'zeroshot-database-prod-puppet-calibration';
 
-// Initialize storage client with service account key
-const storageConfig = {
-  keyFilename: '/Users/julien/Github/zeroshot/mask-builder/key.json',
-};
-
-const storage = new Storage(storageConfig);
-const bucket = storage.bucket(BUCKET_NAME);
+// Sample/mock data for development
+const mockPuppets = [
+  { id: 'puppet001', name: 'puppet001', hasMask: true, maskCreatedAt: new Date(2023, 5, 15).toISOString() },
+  { id: 'puppet002', name: 'puppet002', hasMask: false },
+  { id: 'puppet003', name: 'puppet003', hasMask: true, maskCreatedAt: new Date(2023, 8, 22).toISOString() },
+  { id: 'puppet004', name: 'puppet004', hasMask: false },
+];
 
 // List puppets in the bucket
 export const listPuppets = async () => {
-  try {
-    const [files] = await bucket.getFiles({
-      prefix: '',
-      delimiter: '/',
-    });
-
-    const puppets = files
-      .filter(file => file.name.endsWith('/'))
-      .map(file => {
-        const puppetId = file.name.replace('/', '');
-        return {
-          id: puppetId,
-          name: puppetId,
-        };
-      });
-
-    return puppets;
-  } catch (error) {
-    console.error('Error listing puppets:', error);
-    throw error;
-  }
+  console.log('Listing puppets from mock data');
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  return mockPuppets.map(({ hasMask, maskCreatedAt, ...puppet }) => puppet);
 };
 
 // Check if mask exists for a puppet
 export const checkMaskExists = async (puppetId) => {
-  try {
-    const maskPath = `${puppetId}/camera/mask.png`;
-    const [exists] = await bucket.file(maskPath).exists();
-    
-    if (exists) {
-      const [metadata] = await bucket.file(maskPath).getMetadata();
-      return {
-        exists,
-        createdAt: metadata.timeCreated,
-      };
-    }
-    
-    return { exists: false };
-  } catch (error) {
-    console.error(`Error checking mask for puppet ${puppetId}:`, error);
-    throw error;
+  console.log(`Checking mask for puppet ${puppetId}`);
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  const puppet = mockPuppets.find(p => p.id === puppetId);
+  
+  if (puppet) {
+    return {
+      exists: puppet.hasMask,
+      createdAt: puppet.maskCreatedAt,
+    };
   }
+  
+  return { exists: false };
 };
 
 // Get video frame from earliest timestamp folder
 export const getVideoFrame = async (puppetId) => {
-  try {
-    // Get all folders under camera
-    const [files] = await bucket.getFiles({
-      prefix: `${puppetId}/camera/`,
-      delimiter: '/',
-    });
-    
-    // Filter and sort timestamp folders
-    const timestampFolders = files
-      .filter(file => file.name.match(/camera\/\d+\/$/))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    
-    if (timestampFolders.length === 0) {
-      throw new Error('No timestamp folders found');
-    }
-    
-    const earliestFolder = timestampFolders[0].name;
-    
-    // Get video file
-    const videoPath = `${earliestFolder}camera_video.mp4`;
-    const [videoExists] = await bucket.file(videoPath).exists();
-    
-    if (!videoExists) {
-      throw new Error('Video file not found');
-    }
-    
-    // Process video to extract frame (this would require server-side processing)
-    // For the frontend, we'd need a serverless function or backend API to handle this
-    // This is a placeholder for the actual implementation
-    const frameUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${videoPath}`;
-    
-    return {
-      frameUrl,
-      videoPath,
-    };
-  } catch (error) {
-    console.error(`Error getting video frame for puppet ${puppetId}:`, error);
-    throw error;
-  }
+  console.log(`Getting video frame for puppet ${puppetId}`);
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // Return a placeholder image
+  return {
+    // Using a placeholder image from Unsplash or Placeholder.com for testing
+    frameUrl: 'https://picsum.photos/800/600',
+    videoPath: `${puppetId}/camera/1234567890/camera_video.mp4`,
+  };
 };
 
 // Upload mask to storage
 export const uploadMask = async (puppetId, maskData) => {
-  try {
-    const maskPath = `${puppetId}/camera/mask.png`;
-    const file = bucket.file(maskPath);
-    
-    // Convert base64 data to buffer
-    const base64Data = maskData.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-    
-    // Upload file
-    await file.save(buffer, {
-      contentType: 'image/png',
-      metadata: {
-        contentType: 'image/png',
-      },
-    });
-    
-    // Get the public URL
-    const publicUrl = `https://storage.googleapis.com/${BUCKET_NAME}/${maskPath}`;
-    
-    return { success: true, url: publicUrl };
-  } catch (error) {
-    console.error(`Error uploading mask for puppet ${puppetId}:`, error);
-    throw error;
+  console.log(`Uploading mask for puppet ${puppetId}`);
+  
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  
+  // In a real app, this would upload to Google Cloud Storage
+  
+  // Find puppet in mock data
+  const puppetIndex = mockPuppets.findIndex(p => p.id === puppetId);
+  
+  if (puppetIndex >= 0) {
+    // Update mock data
+    mockPuppets[puppetIndex].hasMask = true;
+    mockPuppets[puppetIndex].maskCreatedAt = new Date().toISOString();
   }
+  
+  return {
+    success: true,
+    url: `https://storage.googleapis.com/${BUCKET_NAME}/${puppetId}/camera/mask.png`,
+  };
 }; 

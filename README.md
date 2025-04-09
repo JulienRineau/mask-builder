@@ -5,7 +5,7 @@ A React application for creating camera masks for specific camera and lens model
 ## Features
 
 - Simple password authentication for internal use
-- Connection to Google Cloud Storage bucket
+- Mock storage implementation (for development)
 - List of puppets (cameras) with existing mask information
 - Mask editor with:
   - Initial circular mask
@@ -14,6 +14,14 @@ A React application for creating camera masks for specific camera and lens model
   - Selection and manipulation of shapes
   - Preview mode with transparency toggle
   - Mask generation and upload
+
+## Development Notes
+
+This version uses a mock storage implementation for browser compatibility. For production, you would need:
+
+1. A backend API service to handle Google Cloud Storage operations
+2. Or Firebase Storage (which is browser-compatible)
+3. Or signed URLs approach for direct upload/download
 
 ## Keyboard Controls
 
@@ -30,20 +38,14 @@ A React application for creating camera masks for specific camera and lens model
    npm install
    ```
 
-2. Service account key:
-   - The app is configured to use a service account key located at:
-     `/Users/julien/Github/zeroshot/mask-builder/key.json`
-   - Make sure this file exists with proper permissions to access the bucket
-     (read and write, but not delete)
-
-3. Start the development server:
+2. Start the development server:
    ```
    npm start
    ```
 
 ## Authentication
 
-The app uses a simple password authentication system. The default password is `zeroshot`. This can be changed in the `Login.js` component.
+The app uses a simple password authentication system. The default password is `SenseiSux15!`. This can be changed in the `Login.js` component.
 
 ## Usage
 
