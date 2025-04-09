@@ -94,29 +94,14 @@ apiRouter.get('/puppets/:puppetId/mask', authenticate, async (req, res) => {
   try {
     console.log(`Checking mask existence for puppet: ${puppetId}`);
     
-    // Check both new and old mask locations
-    // New location: <puppetId>-maskp.png in masksBucket
-    // Old location: <puppetId>/camera/mask.png in bucket
+    // Only check the masks bucket now
+    const maskPath = `${puppetId}-maskp.png`;
+    const [exists] = await masksBucket.file(maskPath).exists();
     
-    // Check new location first
-    const newMaskPath = `${puppetId}-maskp.png`;
-    const [newLocationExists] = await masksBucket.file(newMaskPath).exists();
-    
-    // Check old location as fallback
-    const oldMaskPath = `${puppetId}/camera/mask.png`;
-    const [oldLocationExists] = await bucket.file(oldMaskPath).exists();
-    
-    const exists = newLocationExists || oldLocationExists;
-    console.log(`Mask for puppet ${puppetId} exists: ${exists} (new: ${newLocationExists}, old: ${oldLocationExists})`);
+    console.log(`Mask for puppet ${puppetId} exists: ${exists}`);
     
     if (exists) {
-      // Get metadata from the existing location
-      let fileMetadata;
-      if (newLocationExists) {
-        [fileMetadata] = await masksBucket.file(newMaskPath).getMetadata();
-      } else {
-        [fileMetadata] = await bucket.file(oldMaskPath).getMetadata();
-      }
+      const [fileMetadata] = await masksBucket.file(maskPath).getMetadata();
       
       res.json({
         exists: true,
@@ -417,9 +402,8 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
     });
     
     try {
-      // Check both old and new mask locations
-      const oldMaskPath = `${puppetId}/camera/mask.png`;
-      const newMaskPath = `${puppetId}-maskp.png`;
+      // Only check the masks bucket now
+      const maskPath = `${puppetId}-maskp.png`;
       const tempDir = path.join(os.tmpdir(), 'mask-builder');
       const tempMaskPath = path.join(tempDir, `${puppetId}_mask.png`);
       
@@ -431,17 +415,8 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
         console.log('Created temp directory');
       }
       
-      // Check if the mask exists in the new location first
-      let [exists] = await masksBucket.file(newMaskPath).exists();
-      let maskBucket = masksBucket;
-      let maskPath = newMaskPath;
-      
-      // If not in new location, check old location
-      if (!exists) {
-        [exists] = await bucket.file(oldMaskPath).exists();
-        maskBucket = bucket;
-        maskPath = oldMaskPath;
-      }
+      // Check if the mask exists
+      const [exists] = await masksBucket.file(maskPath).exists();
       
       if (!exists) {
         console.log(`No existing mask found for puppet ${puppetId}`);
@@ -454,7 +429,7 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
       
       // Download the mask file
       console.log(`Downloading mask to: ${tempMaskPath}`);
-      await maskBucket.file(maskPath).download({ destination: tempMaskPath });
+      await masksBucket.file(maskPath).download({ destination: tempMaskPath });
       
       // Read the mask file and convert to base64
       const maskBuffer = fs.readFileSync(tempMaskPath);
