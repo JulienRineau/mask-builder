@@ -552,10 +552,53 @@ function MaskEditor() {
   const handleMouseMove = (e) => {
     if (!isDrawing) return;
     
-    // Add point for freeform drawing
+    // Add point for freeform drawing - only add a point every few pixels to reduce complexity
     const pos = getOriginalCoordinates(e.target.getStage().getPointerPosition());
     const newPoint = snapToImageBorder(pos);
+    
+    // Only add a point if we've moved at least 5 pixels from the last point
+    if (currentShape.length >= 2) {
+      const lastX = currentShape[currentShape.length - 2];
+      const lastY = currentShape[currentShape.length - 1];
+      
+      const distance = Math.sqrt(
+        Math.pow(newPoint.x - lastX, 2) + Math.pow(newPoint.y - lastY, 2)
+      );
+      
+      if (distance < 5) {
+        return; // Skip this point if too close to the last one
+      }
+    }
+    
     setCurrentShape([...currentShape, newPoint.x, newPoint.y]);
+  };
+
+  const simplifyShape = (points, tolerance = 5) => {
+    // If fewer than 3 points, can't simplify
+    if (points.length < 6) return points;
+    
+    const simplified = [points[0], points[1]]; // Always keep the first point
+    
+    // Use a simple distance-based simplification
+    for (let i = 2; i < points.length - 2; i += 2) {
+      const lastX = simplified[simplified.length - 2];
+      const lastY = simplified[simplified.length - 1];
+      const currentX = points[i];
+      const currentY = points[i+1];
+      
+      const distance = Math.sqrt(
+        Math.pow(currentX - lastX, 2) + Math.pow(currentY - lastY, 2)
+      );
+      
+      if (distance >= tolerance) {
+        simplified.push(currentX, currentY);
+      }
+    }
+    
+    // Always keep the last point
+    simplified.push(points[points.length - 2], points[points.length - 1]);
+    
+    return simplified;
   };
 
   const handleMouseUp = () => {
@@ -573,9 +616,14 @@ function MaskEditor() {
       );
       
       if (distance < 20) {
-        // Close the shape
-        const closedShape = [...currentShape, firstX, firstY];
-        setShapes([...shapes, { points: closedShape, closed: true }]);
+        // Simplify the shape to reduce number of points
+        const simplifiedShape = simplifyShape(currentShape);
+        
+        // Close the shape by adding the first point at the end
+        const closedShape = [...simplifiedShape, firstX, firstY];
+        const newShape = { points: closedShape, closed: true };
+        console.log(`Closing shape with ${closedShape.length/2} points (simplified from ${currentShape.length/2})`);
+        setShapes(prevShapes => [...prevShapes, newShape]);
         setCurrentShape([]);
         setIsDrawing(false);
       }
@@ -623,9 +671,21 @@ function MaskEditor() {
     ctx.arc(mainCircle.x, mainCircle.y, mainCircle.radius, 0, Math.PI * 2);
     ctx.fill();
     
+    console.log(`Drawing ${shapes.length} shapes in the mask`);
+    
     // Draw all shapes
-    shapes.forEach(shape => {
-      if (!shape.closed) return;
+    shapes.forEach((shape, index) => {
+      if (!shape.closed) {
+        console.log(`Shape ${index} is not closed, skipping`);
+        return;
+      }
+      
+      if (shape.points.length < 6) { // Need at least 3 points (x,y pairs) to form a polygon
+        console.log(`Shape ${index} has too few points (${shape.points.length}), skipping`);
+        return;
+      }
+      
+      console.log(`Drawing shape ${index} with ${shape.points.length/2} points`);
       
       ctx.beginPath();
       ctx.moveTo(shape.points[0], shape.points[1]);
@@ -634,6 +694,7 @@ function MaskEditor() {
         ctx.lineTo(shape.points[i], shape.points[i + 1]);
       }
       
+      ctx.closePath(); // Ensure path is closed
       ctx.fill();
     });
     
@@ -643,6 +704,8 @@ function MaskEditor() {
   const handleSaveMask = async () => {
     try {
       setUploadStatus('uploading');
+      console.log(`Saving mask with ${shapes.length} shapes`);
+      
       const maskData = generateMask();
       
       if (!maskData) {
@@ -655,9 +718,11 @@ function MaskEditor() {
       
       if (result.success) {
         setUploadStatus('success');
+        console.log('Mask uploaded successfully');
       } else {
         setUploadStatus('error');
         setError('Failed to upload mask');
+        console.error('Failed to upload mask', result);
       }
     } catch (err) {
       setUploadStatus('error');
