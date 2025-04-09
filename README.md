@@ -1,3 +1,58 @@
+# Mask Builder
+
+A React application for creating camera masks for specific camera and lens models with varying lens positions.
+
+## Features
+
+- Google OAuth authentication for employee-only access
+- Connection to Google Cloud Storage bucket
+- List of puppets (cameras) with existing mask information
+- Mask editor with:
+  - Initial circular mask
+  - Keyboard controls for positioning and resizing
+  - Shape drawing tools (freeform and point-by-point)
+  - Selection and manipulation of shapes
+  - Preview mode with transparency toggle
+  - Mask generation and upload
+
+## Keyboard Controls
+
+- **Arrow Keys**: Move selected shape's position
+- **+ / -**: Increase/decrease selected shape's size
+- **T**: Toggle transparency
+- **Esc**: Abandon current shape / Deselect
+- **Delete**: Remove selected shape/point
+
+## Setup
+
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Create a `.env` file in the project root and add your Google OAuth client ID:
+   ```
+   REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id-here
+   ```
+
+3. Start the development server:
+   ```
+   npm start
+   ```
+
+## Usage
+
+1. Log in with your Google account
+2. Select a puppet from the dashboard
+3. Use the mask editor to create or edit a mask
+4. Save the mask to upload it to the Google Cloud bucket
+
+## Requirements
+
+- Node.js and npm
+- Google Cloud service account with access to the bucket
+- Google OAuth client ID for authentication
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
