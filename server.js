@@ -340,8 +340,16 @@ apiRouter.post('/puppets/:puppetId/mask', authenticate, async (req, res) => {
     });
     
     try {
-      // Create timestamped filename in puppet folder: <puppetId>/<timestamp>_mask.png
-      const timestamp = new Date().toISOString().replace(/[-:.]/g, '');
+      // Create timestamped filename in puppet folder: <puppetId>/MMDDYYYY_HHMMSS_mask.png
+      const now = new Date();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const year = now.getFullYear();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+      
+      const timestamp = `${month}${day}${year}_${hours}${minutes}${seconds}`;
       const maskPath = `${puppetId}/${timestamp}_mask.png`;
       console.log(`Saving mask to path: ${maskPath}`);
       
