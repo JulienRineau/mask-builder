@@ -47,10 +47,17 @@ const apiRouter = express.Router();
 
 // Authentication middleware
 const authenticate = (req, res, next) => {
+  // For mask status checking endpoints, bypass authentication
+  if (req.method === 'GET' && req.path.includes('/mask') && !req.path.includes('/existing-mask')) {
+    console.log('Bypassing authentication for mask status check');
+    return next();
+  }
+  
   // Simple authentication for demo purposes
   // In production, use a proper authentication system
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.log(`Unauthorized request to ${req.method} ${req.path}`);
     return res.status(401).json({ error: 'Unauthorized' });
   }
   

@@ -19,9 +19,9 @@ function Dashboard() {
         const puppetsWithStatus = await Promise.all(
           data.map(async (puppet) => {
             try {
-              // Add cache-busting parameter for forced refresh
-              const statusUrl = `/api/puppets/${puppet.id}/mask${refreshKey > 0 ? '?nocache=' + Date.now() : ''}`;
-              const status = await fetch(statusUrl).then(res => res.json());
+              // Use the checkMaskExists function from storageService
+              const status = await checkMaskExists(puppet.id);
+              console.log(`Mask status for ${puppet.id}:`, status);
               return { ...puppet, maskStatus: status };
             } catch (err) {
               console.error(`Error fetching mask status for ${puppet.id}:`, err);
