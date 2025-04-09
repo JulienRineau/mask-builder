@@ -123,10 +123,12 @@ function MaskEditor() {
       
       console.log(`Main circle set to: x=${centerX}, y=${centerY}, radius=${avgRadius}`);
       
-      // Extract additional shapes from the mask by tracing the contours
-      // For simplicity in this implementation, we'll simulate finding outer shapes
-      // by creating a circular mask and looking at the differences
+      // For simplicity, let's just use the main circle and not try to extract additional shapes
+      // This will prevent random noise from being interpreted as shapes
+      setShapes([]);
       
+      // If you want to extract additional shapes, uncomment the code below and adjust parameters
+      /*
       // Create a circular mask for the main circle
       const circularMask = new Uint8Array(width * height);
       for (let y = 0; y < height; y++) {
@@ -139,7 +141,6 @@ function MaskEditor() {
       }
       
       // Find pixels that are in binaryMask but not in circularMask
-      // These represent areas outside the main circle that should be additional shapes
       const differenceMask = new Uint8Array(width * height);
       for (let i = 0; i < width * height; i++) {
         if (binaryMask[i] === 1 && circularMask[i] === 0) {
@@ -148,7 +149,6 @@ function MaskEditor() {
       }
       
       // Simple boundary tracing for additional shapes
-      // Group connected pixels into shapes
       const visited = new Set();
       const newShapes = [];
       
@@ -219,37 +219,51 @@ function MaskEditor() {
       };
       
       // Find and trace connected regions
-      for (let y = 0; y < height; y += 5) {
-        for (let x = 0; x < width; x += 5) {
+      for (let y = 0; y < height; y += 10) { // Increased step to reduce sensitivity
+        for (let x = 0; x < width; x += 10) { // Increased step to reduce sensitivity
           const index = y * width + x;
           if (differenceMask[index] === 1 && !visited.has(`${x},${y}`)) {
             const boundaryPoints = traceBoundary(x, y);
             
-            // Only add shapes with enough points
-            if (boundaryPoints.length > 8) {
-              // Simplify the shape by sampling points to reduce complexity
-              const simplified = [];
-              for (let i = 0; i < boundaryPoints.length; i += 20) {
-                simplified.push(boundaryPoints[i], boundaryPoints[i + 1]);
+            // Only add shapes with significant number of points
+            if (boundaryPoints.length > 50) { // Increased threshold
+              // Calculate the area of the shape
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              for (let i = 0; i < boundaryPoints.length; i += 2) {
+                minX = Math.min(minX, boundaryPoints[i]);
+                minY = Math.min(minY, boundaryPoints[i + 1]);
+                maxX = Math.max(maxX, boundaryPoints[i]);
+                maxY = Math.max(maxY, boundaryPoints[i + 1]);
               }
               
-              // Close the shape
-              if (simplified.length > 4) {
-                simplified.push(simplified[0], simplified[1]);
-                newShapes.push({
-                  points: simplified,
-                  closed: true
-                });
+              const area = (maxX - minX) * (maxY - minY);
+              // Only add shapes with significant area (at least 1% of the image)
+              if (area > (width * height * 0.01)) {
+                // Simplify more aggressively by sampling fewer points
+                const simplified = [];
+                for (let i = 0; i < boundaryPoints.length; i += 40) { // Increased sampling interval
+                  simplified.push(boundaryPoints[i], boundaryPoints[i + 1]);
+                }
+                
+                // Close the shape
+                if (simplified.length > 4) {
+                  simplified.push(simplified[0], simplified[1]);
+                  newShapes.push({
+                    points: simplified,
+                    closed: true
+                  });
+                }
               }
             }
           }
         }
       }
       
-      console.log(`Extracted ${newShapes.length} additional shapes`);
+      console.log(`Extracted ${newShapes.length} additional shapes after filtering`);
       if (newShapes.length > 0) {
         setShapes(newShapes);
       }
+      */
     }
   }, []);
 
@@ -378,6 +392,11 @@ function MaskEditor() {
       try {
         setLoading(true);
         setError(null);
+        // Clear any existing shapes or drawing state when loading a new image
+        setShapes([]);
+        setCurrentShape([]);
+        setIsDrawing(false);
+        setSelectedShapeIndex(null);
         console.log(`Loading frame for puppet: ${puppetId}`);
         
         const frameData = await getVideoFrame(puppetId);
