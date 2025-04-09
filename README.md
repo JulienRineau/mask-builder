@@ -30,12 +30,11 @@ A React application for creating camera masks for specific camera and lens model
    npm install
    ```
 
-2. Create a service account key:
-   - Go to the Google Cloud Console: https://console.cloud.google.com/
-   - Navigate to "IAM & Admin" > "Service accounts"
-   - Create a new service account with the necessary permissions for the bucket
-   - Create a key for the service account (JSON format)
-   - Save the key file as `service-account-key.json` in the project root
+2. Service account key:
+   - The app is configured to use a service account key located at:
+     `/Users/julien/Github/zeroshot/mask-builder/key.json`
+   - Make sure this file exists with proper permissions to access the bucket
+     (read and write, but not delete)
 
 3. Start the development server:
    ```
