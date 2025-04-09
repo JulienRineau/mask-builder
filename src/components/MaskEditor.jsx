@@ -510,15 +510,19 @@ function MaskEditor() {
           }
           break;
         case 'Delete':
+        case 'Backspace': // Add support for Backspace key for Mac users
+          console.log('Delete/Backspace pressed', { multiSelect, selectedShapeIndex, shapes: shapes.length });
           if (multiSelect) {
             // Delete all shapes
             setShapes([]);
             setMultiSelect(false);
+            console.log('Deleted all shapes');
           } else if (selectedShapeIndex !== null) {
             const newShapes = [...shapes];
             newShapes.splice(selectedShapeIndex, 1);
             setShapes(newShapes);
             setSelectedShapeIndex(null);
+            console.log(`Deleted shape at index ${selectedShapeIndex}`);
           }
           break;
         default:
@@ -594,6 +598,8 @@ function MaskEditor() {
     setSelectedShapeIndex(index);
     setIsDrawing(false);
     setCurrentShape([]);
+    setMultiSelect(false);
+    console.log(`Selected shape at index ${index}`);
   };
 
   const generateMask = () => {
