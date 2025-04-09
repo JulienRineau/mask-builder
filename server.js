@@ -93,28 +93,34 @@ apiRouter.get('/puppets/:puppetId/mask', authenticate, async (req, res) => {
   
   try {
     console.log(`Checking mask existence for puppet: ${puppetId}`);
-    const maskFileName = `${puppetId}-mask.png`;
     
-    // Check if mask exists in bucket with cache busting
-    const options = {
-      prefix: maskFileName,
-    };
+    // Check both new and old mask locations
+    // New location: <puppetId>-maskp.png in masksBucket
+    // Old location: <puppetId>/camera/mask.png in bucket
     
-    if (req.query.nocache) {
-      console.log(`Cache busting requested with param: ${req.query.nocache}`);
-      options.userProject = req.query.nocache; // Adding random parameter to bust cache
-    }
+    // Check new location first
+    const newMaskPath = `${puppetId}-maskp.png`;
+    const [newLocationExists] = await masksBucket.file(newMaskPath).exists();
     
-    const [files] = await masksBucket.getFiles(options);
+    // Check old location as fallback
+    const oldMaskPath = `${puppetId}/camera/mask.png`;
+    const [oldLocationExists] = await bucket.file(oldMaskPath).exists();
     
-    const exists = files.length > 0;
-    console.log(`Mask for puppet ${puppetId} exists: ${exists}`);
+    const exists = newLocationExists || oldLocationExists;
+    console.log(`Mask for puppet ${puppetId} exists: ${exists} (new: ${newLocationExists}, old: ${oldLocationExists})`);
     
     if (exists) {
-      const [metadata] = await files[0].getMetadata();
+      // Get metadata from the existing location
+      let fileMetadata;
+      if (newLocationExists) {
+        [fileMetadata] = await masksBucket.file(newMaskPath).getMetadata();
+      } else {
+        [fileMetadata] = await bucket.file(oldMaskPath).getMetadata();
+      }
+      
       res.json({
         exists: true,
-        createdAt: metadata.timeCreated
+        createdAt: fileMetadata.timeCreated
       });
     } else {
       res.json({
@@ -440,7 +446,9 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
       if (!exists) {
         console.log(`No existing mask found for puppet ${puppetId}`);
         const errorResult = { error: 'Mask not found' };
-        rejectRetrieval(errorResult);
+        // Don't reject the promise when sending a 404 response
+        // This is a normal condition, not an error in promise terms
+        resolveRetrieval(errorResult);
         return res.status(404).json(errorResult);
       }
       
