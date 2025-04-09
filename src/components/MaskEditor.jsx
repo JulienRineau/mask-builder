@@ -17,7 +17,7 @@ function MaskEditor() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
-  const [loadingMask, setLoadingMask] = useState(false);
+  const [, setLoadingMask] = useState(false);
   const [scale, setScale] = useState(1);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -428,7 +428,7 @@ function MaskEditor() {
     };
 
     loadFrame();
-  }, [puppetId]);
+  }, [puppetId, loadExistingMaskAsync]);
 
   useEffect(() => {
     // Keyboard event handler
@@ -639,7 +639,7 @@ function MaskEditor() {
   };
 
   // Create a new Promise-based mask loading function
-  const loadExistingMaskAsync = () => {
+  const loadExistingMaskAsync = useCallback(() => {
     return new Promise(async (resolve) => {
       try {
         setLoadingMask(true);
@@ -678,7 +678,7 @@ function MaskEditor() {
         resolve();
       }
     });
-  };
+  }, [puppetId, imageSize.width, imageSize.height, extractShapesFromMask]);
 
   return (
     <div className="flex flex-col h-screen">

@@ -3,7 +3,6 @@
 
 // API service for accessing Google Cloud Storage through the backend
 const API_URL = '/api'; // This will be proxied to http://localhost:3001/api
-const BUCKET_NAME = 'zeroshot-database-prod-puppet-calibration';
 const MASKS_BUCKET_NAME = 'zeroshot-database-prod-masks';
 
 // Helper function to make API requests with auth
