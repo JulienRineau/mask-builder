@@ -84,36 +84,49 @@ apiRouter.get('/puppets', authenticate, async (req, res) => {
 
 // Check if mask exists for a puppet
 apiRouter.get('/puppets/:puppetId/mask', authenticate, async (req, res) => {
+  const puppetId = req.params.puppetId;
+  
+  // Set cache control headers to prevent caching
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  
   try {
-    const puppetId = req.params.puppetId;
-    const oldMaskPath = `${puppetId}/camera/mask.png`;
-    const newMaskPath = `${puppetId}-maskp.png`;
+    console.log(`Checking mask existence for puppet: ${puppetId}`);
+    const maskFileName = `${puppetId}-mask.png`;
     
-    // Check new location first
-    let [exists] = await masksBucket.file(newMaskPath).exists();
-    let metadata = null;
+    // Check if mask exists in bucket with cache busting
+    const options = {
+      prefix: maskFileName,
+    };
     
-    if (exists) {
-      [metadata] = await masksBucket.file(newMaskPath).getMetadata();
-    } else {
-      // Check old location as fallback
-      [exists] = await bucket.file(oldMaskPath).exists();
-      if (exists) {
-        [metadata] = await bucket.file(oldMaskPath).getMetadata();
-      }
+    if (req.query.nocache) {
+      console.log(`Cache busting requested with param: ${req.query.nocache}`);
+      options.userProject = req.query.nocache; // Adding random parameter to bust cache
     }
     
+    const [files] = await masksBucket.getFiles(options);
+    
+    const exists = files.length > 0;
+    console.log(`Mask for puppet ${puppetId} exists: ${exists}`);
+    
     if (exists) {
+      const [metadata] = await files[0].getMetadata();
       res.json({
-        exists,
-        createdAt: metadata.timeCreated,
+        exists: true,
+        createdAt: metadata.timeCreated
       });
     } else {
-      res.json({ exists: false });
+      res.json({
+        exists: false
+      });
     }
   } catch (error) {
-    console.error(`Error checking mask for puppet ${req.params.puppetId}:`, error);
-    res.status(500).json({ error: 'Failed to check mask' });
+    console.error(`Error checking mask for puppet ${puppetId}:`, error);
+    res.status(500).json({
+      error: 'Failed to check mask existence',
+      details: error.message
+    });
   }
 });
 

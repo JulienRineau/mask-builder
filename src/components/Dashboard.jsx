@@ -6,37 +6,46 @@ function Dashboard() {
   const [puppets, setPuppets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPuppets = async () => {
       try {
         setLoading(true);
-        const puppetList = await listPuppets();
+        const data = await listPuppets();
         
-        // Check mask status for each puppet
+        // Fetch mask status for each puppet
         const puppetsWithStatus = await Promise.all(
-          puppetList.map(async (puppet) => {
-            const maskStatus = await checkMaskExists(puppet.id);
-            return {
-              ...puppet,
-              hasMask: maskStatus.exists,
-              maskCreatedAt: maskStatus.createdAt,
-            };
+          data.map(async (puppet) => {
+            try {
+              // Add cache-busting parameter for forced refresh
+              const statusUrl = `/api/puppets/${puppet.id}/mask${refreshKey > 0 ? '?nocache=' + Date.now() : ''}`;
+              const status = await fetch(statusUrl).then(res => res.json());
+              return { ...puppet, maskStatus: status };
+            } catch (err) {
+              console.error(`Error fetching mask status for ${puppet.id}:`, err);
+              return { ...puppet, maskStatus: { exists: false, error: err.message } };
+            }
           })
         );
         
         setPuppets(puppetsWithStatus);
-        setLoading(false);
       } catch (err) {
-        setError('Failed to load puppets. Please try again later.');
-        setLoading(false);
         console.error('Error fetching puppets:', err);
+        setError('Failed to load puppets. Please try again later.');
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchPuppets();
-  }, []);
+  }, [refreshKey]);
+
+  const handleRefresh = () => {
+    // Increment refreshKey to force re-fetch with cache busting
+    setRefreshKey(prev => prev + 1);
+  };
 
   const handlePuppetSelect = (puppetId) => {
     navigate(`/editor/${puppetId}`);
@@ -48,84 +57,74 @@ function Dashboard() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto px-4 py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Mask Builder Dashboard</h1>
         <button
+          onClick={handleRefresh}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+        >
+          Refresh Mask Status
+        </button>
+        <button
           onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
         >
           Logout
         </button>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+          <p>{error}</p>
         </div>
-      ) : error ? (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">{error}</span>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
         </div>
       ) : (
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Puppet ID
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Mask Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Created Date
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {puppets.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-4 text-center text-sm text-gray-500">
-                    No puppets found
-                  </td>
-                </tr>
-              ) : (
-                puppets.map((puppet) => (
-                  <tr key={puppet.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {puppet.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {puppet.hasMask ? (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Available
-                        </span>
-                      ) : (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                          Not Available
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {puppet.maskCreatedAt ? new Date(puppet.maskCreatedAt).toLocaleString() : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handlePuppetSelect(puppet.id)}
-                        className="text-indigo-600 hover:text-indigo-900"
-                      >
-                        {puppet.hasMask ? 'Edit Mask' : 'Create Mask'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {puppets.map((puppet) => (
+            <div
+              key={puppet.id}
+              className="bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => handlePuppetSelect(puppet.id)}
+            >
+              <div className="p-4">
+                <h2 className="text-lg font-semibold mb-2">{puppet.id}</h2>
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-gray-600">Mask Status:</p>
+                    <span
+                      className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                        puppet.maskStatus && puppet.maskStatus.exists
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {puppet.maskStatus && puppet.maskStatus.exists ? 'Available' : 'Not Created'}
+                    </span>
+                  </div>
+                  <button
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePuppetSelect(puppet.id);
+                    }}
+                  >
+                    Edit Mask
+                  </button>
+                </div>
+                {puppet.maskStatus && puppet.maskStatus.exists && puppet.maskStatus.createdAt && (
+                  <p className="text-gray-500 text-sm mt-2">
+                    Created: {new Date(puppet.maskStatus.createdAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
