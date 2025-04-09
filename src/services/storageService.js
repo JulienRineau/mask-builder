@@ -1,35 +1,38 @@
 // Mock Storage Service for Browser Environment
 // In production, these calls would go to a backend API that interfaces with Google Cloud Storage
 
-import axios from 'axios';
-
-// Base API URL for accessing Google Cloud Storage
-// You would need to create a small backend service to handle these requests
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+// API service for accessing Google Cloud Storage through the backend
+const API_URL = '/api'; // This will be proxied to http://localhost:3001/api
 const BUCKET_NAME = 'zeroshot-database-prod-puppet-calibration';
 
-// Create axios instance with default config
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
-// Intercept requests to add auth token if available
-api.interceptors.request.use(config => {
+// Helper function to make API requests with auth
+const apiRequest = async (endpoint, options = {}) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
-  if (isAuthenticated) {
-    config.headers.Authorization = `Bearer ${isAuthenticated}`;
+  
+  const defaultOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(isAuthenticated ? { 'Authorization': `Bearer ${isAuthenticated}` } : {}),
+    },
+  };
+  
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...defaultOptions,
+    ...options,
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || 'API request failed');
   }
-  return config;
-});
+  
+  return response.json();
+};
 
 // List puppets in the bucket
 export const listPuppets = async () => {
   try {
-    const response = await api.get('/puppets');
-    return response.data;
+    return await apiRequest('/puppets');
   } catch (error) {
     console.error('Error listing puppets:', error);
     // Fallback to mock data if API is not available
@@ -40,8 +43,7 @@ export const listPuppets = async () => {
 // Check if mask exists for a puppet
 export const checkMaskExists = async (puppetId) => {
   try {
-    const response = await api.get(`/puppets/${puppetId}/mask`);
-    return response.data;
+    return await apiRequest(`/puppets/${puppetId}/mask`);
   } catch (error) {
     console.error(`Error checking mask for puppet ${puppetId}:`, error);
     // Fallback to mock data
@@ -52,8 +54,7 @@ export const checkMaskExists = async (puppetId) => {
 // Get video frame from earliest timestamp folder
 export const getVideoFrame = async (puppetId) => {
   try {
-    const response = await api.get(`/puppets/${puppetId}/frame`);
-    return response.data;
+    return await apiRequest(`/puppets/${puppetId}/frame`);
   } catch (error) {
     console.error(`Error getting video frame for puppet ${puppetId}:`, error);
     // Fallback to mock data
@@ -64,11 +65,13 @@ export const getVideoFrame = async (puppetId) => {
 // Upload mask to storage
 export const uploadMask = async (puppetId, maskData) => {
   try {
-    const response = await api.post(`/puppets/${puppetId}/mask`, { 
-      maskData,
-      bucketName: BUCKET_NAME 
+    return await apiRequest(`/puppets/${puppetId}/mask`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        maskData,
+        bucketName: BUCKET_NAME 
+      }),
     });
-    return response.data;
   } catch (error) {
     console.error(`Error uploading mask for puppet ${puppetId}:`, error);
     // Fallback to mock upload response
