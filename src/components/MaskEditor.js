@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Stage, Layer, Circle, Line, Image as KonvaImage } from 'react-konva';
 import { getVideoFrame, uploadMask } from '../services/storageService';
@@ -18,6 +18,67 @@ function MaskEditor() {
   const [error, setError] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
   const stageRef = useRef(null);
+
+  const moveSelectedShape = useCallback((dx, dy) => {
+    if (selectedShapeIndex === null) return;
+    
+    setShapes(prevShapes => {
+      const newShapes = [...prevShapes];
+      const shape = newShapes[selectedShapeIndex];
+      
+      const movedPoints = shape.points.map((point, i) => {
+        if (i % 2 === 0) {
+          return point + dx;
+        } else {
+          return point + dy;
+        }
+      });
+      
+      newShapes[selectedShapeIndex] = {
+        ...shape,
+        points: movedPoints,
+      };
+      
+      return newShapes;
+    });
+  }, [selectedShapeIndex]);
+
+  const resizeSelectedShape = useCallback((scale) => {
+    if (selectedShapeIndex === null) return;
+    
+    setShapes(prevShapes => {
+      const newShapes = [...prevShapes];
+      const shape = newShapes[selectedShapeIndex];
+      
+      // Find center of shape
+      let sumX = 0;
+      let sumY = 0;
+      
+      for (let i = 0; i < shape.points.length; i += 2) {
+        sumX += shape.points[i];
+        sumY += shape.points[i + 1];
+      }
+      
+      const centerX = sumX / (shape.points.length / 2);
+      const centerY = sumY / (shape.points.length / 2);
+      
+      // Scale points relative to center
+      const scaledPoints = shape.points.map((point, i) => {
+        if (i % 2 === 0) {
+          return centerX + (point - centerX) * scale;
+        } else {
+          return centerY + (point - centerY) * scale;
+        }
+      });
+      
+      newShapes[selectedShapeIndex] = {
+        ...shape,
+        points: scaledPoints,
+      };
+      
+      return newShapes;
+    });
+  }, [selectedShapeIndex]);
 
   useEffect(() => {
     const loadFrame = async () => {
@@ -138,63 +199,6 @@ function MaskEditor() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imageSize, selectedShapeIndex, isDrawing, shapes, moveSelectedShape, resizeSelectedShape]);
-
-  const moveSelectedShape = (dx, dy) => {
-    if (selectedShapeIndex === null) return;
-    
-    const newShapes = [...shapes];
-    const shape = newShapes[selectedShapeIndex];
-    
-    const movedPoints = shape.points.map((point, i) => {
-      if (i % 2 === 0) {
-        return point + dx;
-      } else {
-        return point + dy;
-      }
-    });
-    
-    newShapes[selectedShapeIndex] = {
-      ...shape,
-      points: movedPoints,
-    };
-    
-    setShapes(newShapes);
-  };
-
-  const resizeSelectedShape = (scale) => {
-    if (selectedShapeIndex === null) return;
-    
-    const newShapes = [...shapes];
-    const shape = newShapes[selectedShapeIndex];
-    
-    // Find center of shape
-    let sumX = 0;
-    let sumY = 0;
-    
-    for (let i = 0; i < shape.points.length; i += 2) {
-      sumX += shape.points[i];
-      sumY += shape.points[i + 1];
-    }
-    
-    const centerX = sumX / (shape.points.length / 2);
-    const centerY = sumY / (shape.points.length / 2);
-    
-    // Scale points relative to center
-    const scaledPoints = shape.points.map((point, i) => {
-      if (i % 2 === 0) {
-        return centerX + (point - centerX) * scale;
-      } else {
-        return centerY + (point - centerY) * scale;
-      }
-    });
-    
-    newShapes[selectedShapeIndex] = {
-      ...shape,
-      points: scaledPoints,
-    };
-    
-    setShapes(newShapes);
-  };
 
   const handleMouseDown = (e) => {
     if (isDrawing) {

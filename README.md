@@ -5,7 +5,7 @@ A React application for creating camera masks for specific camera and lens model
 ## Features
 
 - Simple password authentication for internal use
-- Mock storage implementation (for development)
+- Real API integration with Google Cloud Storage
 - List of puppets (cameras) with existing mask information
 - Mask editor with:
   - Initial circular mask
@@ -15,13 +15,13 @@ A React application for creating camera masks for specific camera and lens model
   - Preview mode with transparency toggle
   - Mask generation and upload
 
-## Development Notes
+## Backend API
 
-This version uses a mock storage implementation for browser compatibility. For production, you would need:
-
-1. A backend API service to handle Google Cloud Storage operations
-2. Or Firebase Storage (which is browser-compatible)
-3. Or signed URLs approach for direct upload/download
+The application includes a Node.js Express server that:
+1. Acts as a middleware between the frontend and Google Cloud Storage
+2. Handles authentication and access control
+3. Provides endpoints for listing puppets, checking mask status, getting video frames, and uploading masks
+4. Serves the React frontend in production
 
 ## Keyboard Controls
 
@@ -38,21 +38,29 @@ This version uses a mock storage implementation for browser compatibility. For p
    npm install
    ```
 
-2. Start the development server:
+2. Place your Google Cloud service account key in the project root as `key.json`
+   - The key must have read/write permissions (but not delete) to the bucket
+
+3. Start the development environment (both server and frontend):
    ```
-   npm start
+   npm run dev
    ```
 
 ## Authentication
 
 The app uses a simple password authentication system. The default password is `SenseiSux15!`. This can be changed in the `Login.js` component.
 
-## Usage
+## Production Deployment
 
-1. Log in with the password
-2. Select a puppet from the dashboard
-3. Use the mask editor to create or edit a mask
-4. Save the mask to upload it to the Google Cloud bucket
+1. Build the React app:
+   ```
+   npm run build
+   ```
+
+2. Start the server which will serve the React app and provide the API:
+   ```
+   npm run server
+   ```
 
 ## Requirements
 
