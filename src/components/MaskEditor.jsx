@@ -19,6 +19,7 @@ function MaskEditor() {
   const [uploadStatus, setUploadStatus] = useState(null);
   const [, setLoadingMask] = useState(false);
   const [scale, setScale] = useState(1);
+  const [multiSelect, setMultiSelect] = useState(false);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const maskCanvasRef = useRef(document.createElement('canvas'));
@@ -444,6 +445,13 @@ function MaskEditor() {
     const handleKeyDown = (e) => {
       if (!imageSize.width) return;
       
+      // Handle Ctrl+A to select all shapes
+      if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setMultiSelect(true);
+        return;
+      }
+      
       switch (e.key) {
         case 'ArrowUp':
           if (selectedShapeIndex === null) {
@@ -498,10 +506,15 @@ function MaskEditor() {
             setIsDrawing(false);
           } else {
             setSelectedShapeIndex(null);
+            setMultiSelect(false);
           }
           break;
         case 'Delete':
-          if (selectedShapeIndex !== null) {
+          if (multiSelect) {
+            // Delete all shapes
+            setShapes([]);
+            setMultiSelect(false);
+          } else if (selectedShapeIndex !== null) {
             const newShapes = [...shapes];
             newShapes.splice(selectedShapeIndex, 1);
             setShapes(newShapes);
@@ -515,7 +528,7 @@ function MaskEditor() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [imageSize, selectedShapeIndex, isDrawing, shapes, moveSelectedShape, resizeSelectedShape]);
+  }, [imageSize, selectedShapeIndex, isDrawing, shapes, moveSelectedShape, resizeSelectedShape, multiSelect]);
 
   const handleMouseDown = (e) => {
     if (isDrawing) {
@@ -647,6 +660,16 @@ function MaskEditor() {
     }
   };
 
+  const selectAllShapes = () => {
+    setMultiSelect(true);
+    setSelectedShapeIndex(null);
+  };
+
+  const clearAllShapes = () => {
+    setShapes([]);
+    setMultiSelect(false);
+  };
+
   return (
     <div className="flex flex-col h-screen">
       <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
@@ -657,6 +680,18 @@ function MaskEditor() {
             className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded"
           >
             Back to Dashboard
+          </button>
+          <button
+            onClick={selectAllShapes}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          >
+            Select All
+          </button>
+          <button
+            onClick={clearAllShapes}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+          >
+            Clear All
           </button>
           <button
             onClick={handleSaveMask}
@@ -707,9 +742,12 @@ function MaskEditor() {
                     y={mainCircle.y}
                     radius={mainCircle.radius}
                     fill={transparent ? 'rgba(0, 0, 255, 0.3)' : 'black'}
-                    stroke={selectedShapeIndex === null ? 'yellow' : 'blue'}
+                    stroke={selectedShapeIndex === null && !multiSelect ? 'yellow' : 'blue'}
                     strokeWidth={2}
-                    onClick={() => setSelectedShapeIndex(null)}
+                    onClick={() => {
+                      setSelectedShapeIndex(null);
+                      setMultiSelect(false);
+                    }}
                   />
                   
                   {/* Completed shapes */}
@@ -718,7 +756,7 @@ function MaskEditor() {
                       key={i}
                       points={shape.points}
                       fill={transparent ? 'rgba(0, 0, 255, 0.3)' : 'black'}
-                      stroke={selectedShapeIndex === i ? 'yellow' : 'blue'}
+                      stroke={selectedShapeIndex === i || multiSelect ? 'yellow' : 'blue'}
                       strokeWidth={2}
                       closed={shape.closed}
                       onClick={() => handleShapeClick(i)}
@@ -754,8 +792,9 @@ function MaskEditor() {
               <li>Arrow Keys: Move selected shape</li>
               <li>+ / -: Resize selected shape</li>
               <li>T: Toggle transparency</li>
+              <li>Ctrl+A: Select all shapes</li>
               <li>Esc: Cancel current shape / Deselect</li>
-              <li>Delete: Remove selected shape</li>
+              <li>Delete: Remove selected shape(s)</li>
             </ul>
           </div>
           <div>
