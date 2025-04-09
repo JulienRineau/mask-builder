@@ -56,86 +56,8 @@ function MaskEditor() {
     };
   };
 
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      calculateScale();
-    };
-    
-    window.addEventListener('resize', handleResize);
-    calculateScale();
-    
-    return () => window.removeEventListener('resize', handleResize);
-  }, [calculateScale]);
-
-  // Calculate scale when image size changes
-  useEffect(() => {
-    calculateScale();
-  }, [imageSize, calculateScale]);
-
-  const moveSelectedShape = useCallback((dx, dy) => {
-    if (selectedShapeIndex === null) return;
-    
-    setShapes(prevShapes => {
-      const newShapes = [...prevShapes];
-      const shape = newShapes[selectedShapeIndex];
-      
-      const movedPoints = shape.points.map((point, i) => {
-        if (i % 2 === 0) {
-          return point + dx;
-        } else {
-          return point + dy;
-        }
-      });
-      
-      newShapes[selectedShapeIndex] = {
-        ...shape,
-        points: movedPoints,
-      };
-      
-      return newShapes;
-    });
-  }, [selectedShapeIndex]);
-
-  const resizeSelectedShape = useCallback((scale) => {
-    if (selectedShapeIndex === null) return;
-    
-    setShapes(prevShapes => {
-      const newShapes = [...prevShapes];
-      const shape = newShapes[selectedShapeIndex];
-      
-      // Find center of shape
-      let sumX = 0;
-      let sumY = 0;
-      
-      for (let i = 0; i < shape.points.length; i += 2) {
-        sumX += shape.points[i];
-        sumY += shape.points[i + 1];
-      }
-      
-      const centerX = sumX / (shape.points.length / 2);
-      const centerY = sumY / (shape.points.length / 2);
-      
-      // Scale points relative to center
-      const scaledPoints = shape.points.map((point, i) => {
-        if (i % 2 === 0) {
-          return centerX + (point - centerX) * scale;
-        } else {
-          return centerY + (point - centerY) * scale;
-        }
-      });
-      
-      newShapes[selectedShapeIndex] = {
-        ...shape,
-        points: scaledPoints,
-      };
-      
-      return newShapes;
-    });
-  }, [selectedShapeIndex]);
-
   // Function to extract shapes from mask
-  const extractShapesFromMask = (maskImage, width, height) => {
+  const extractShapesFromMask = useCallback((maskImage, width, height) => {
     console.log('Extracting shapes from mask...');
     const canvas = maskCanvasRef.current;
     canvas.width = width;
@@ -328,40 +250,127 @@ function MaskEditor() {
         setShapes(newShapes);
       }
     }
-  };
+  }, []);
 
-  // Load existing mask if available
-  const loadExistingMask = async () => {
-    try {
-      setLoadingMask(true);
-      const maskData = await getExistingMask(puppetId);
-      
-      if (maskData && maskData.maskData) {
-        console.log('Existing mask found, loading...');
+  // Create a Promise-based mask loading function
+  const loadExistingMaskAsync = useCallback(() => {
+    return new Promise(async (resolve) => {
+      try {
+        setLoadingMask(true);
+        const maskData = await getExistingMask(puppetId);
         
-        // Create an image from the mask data
-        const maskImg = new window.Image();
-        maskImg.onload = () => {
-          // Extract shapes from the mask image
-          if (imageSize.width > 0 && imageSize.height > 0) {
-            extractShapesFromMask(maskImg, imageSize.width, imageSize.height);
-          }
-          setLoadingMask(false);
-        };
-        maskImg.onerror = () => {
-          console.error('Failed to load mask image');
-          setLoadingMask(false);
-        };
-        maskImg.src = maskData.maskData;
-      } else {
-        console.log('No existing mask found');
+        if (maskData && maskData.maskData) {
+          console.log('Existing mask found, loading...');
+          
+          // Create an image from the mask data
+          const maskImg = new window.Image();
+          
+          // Use a Promise to wait for image load
+          await new Promise((resolveImage) => {
+            maskImg.onload = () => {
+              // Extract shapes from the mask image
+              if (imageSize.width > 0 && imageSize.height > 0) {
+                extractShapesFromMask(maskImg, imageSize.width, imageSize.height);
+              }
+              resolveImage();
+            };
+            
+            maskImg.onerror = () => {
+              console.error('Failed to load mask image');
+              resolveImage();
+            };
+            
+            maskImg.src = maskData.maskData;
+          });
+        } else {
+          console.log('No existing mask found');
+        }
+      } catch (err) {
+        console.error('Error loading existing mask:', err);
+      } finally {
         setLoadingMask(false);
+        resolve();
       }
-    } catch (err) {
-      console.error('Error loading existing mask:', err);
-      setLoadingMask(false);
-    }
-  };
+    });
+  }, [puppetId, imageSize.width, imageSize.height, extractShapesFromMask]);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      calculateScale();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    calculateScale();
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, [calculateScale]);
+
+  // Calculate scale when image size changes
+  useEffect(() => {
+    calculateScale();
+  }, [imageSize, calculateScale]);
+
+  const moveSelectedShape = useCallback((dx, dy) => {
+    if (selectedShapeIndex === null) return;
+    
+    setShapes(prevShapes => {
+      const newShapes = [...prevShapes];
+      const shape = newShapes[selectedShapeIndex];
+      
+      const movedPoints = shape.points.map((point, i) => {
+        if (i % 2 === 0) {
+          return point + dx;
+        } else {
+          return point + dy;
+        }
+      });
+      
+      newShapes[selectedShapeIndex] = {
+        ...shape,
+        points: movedPoints,
+      };
+      
+      return newShapes;
+    });
+  }, [selectedShapeIndex]);
+
+  const resizeSelectedShape = useCallback((scale) => {
+    if (selectedShapeIndex === null) return;
+    
+    setShapes(prevShapes => {
+      const newShapes = [...prevShapes];
+      const shape = newShapes[selectedShapeIndex];
+      
+      // Find center of shape
+      let sumX = 0;
+      let sumY = 0;
+      
+      for (let i = 0; i < shape.points.length; i += 2) {
+        sumX += shape.points[i];
+        sumY += shape.points[i + 1];
+      }
+      
+      const centerX = sumX / (shape.points.length / 2);
+      const centerY = sumY / (shape.points.length / 2);
+      
+      // Scale points relative to center
+      const scaledPoints = shape.points.map((point, i) => {
+        if (i % 2 === 0) {
+          return centerX + (point - centerX) * scale;
+        } else {
+          return centerY + (point - centerY) * scale;
+        }
+      });
+      
+      newShapes[selectedShapeIndex] = {
+        ...shape,
+        points: scaledPoints,
+      };
+      
+      return newShapes;
+    });
+  }, [selectedShapeIndex]);
 
   useEffect(() => {
     const loadFrame = async () => {
@@ -637,48 +646,6 @@ function MaskEditor() {
       console.error('Error saving mask:', err);
     }
   };
-
-  // Create a new Promise-based mask loading function
-  const loadExistingMaskAsync = useCallback(() => {
-    return new Promise(async (resolve) => {
-      try {
-        setLoadingMask(true);
-        const maskData = await getExistingMask(puppetId);
-        
-        if (maskData && maskData.maskData) {
-          console.log('Existing mask found, loading...');
-          
-          // Create an image from the mask data
-          const maskImg = new window.Image();
-          
-          // Use a Promise to wait for image load
-          await new Promise((resolveImage) => {
-            maskImg.onload = () => {
-              // Extract shapes from the mask image
-              if (imageSize.width > 0 && imageSize.height > 0) {
-                extractShapesFromMask(maskImg, imageSize.width, imageSize.height);
-              }
-              resolveImage();
-            };
-            
-            maskImg.onerror = () => {
-              console.error('Failed to load mask image');
-              resolveImage();
-            };
-            
-            maskImg.src = maskData.maskData;
-          });
-        } else {
-          console.log('No existing mask found');
-        }
-      } catch (err) {
-        console.error('Error loading existing mask:', err);
-      } finally {
-        setLoadingMask(false);
-        resolve();
-      }
-    });
-  }, [puppetId, imageSize.width, imageSize.height, extractShapesFromMask]);
 
   return (
     <div className="flex flex-col h-screen">
