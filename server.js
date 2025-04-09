@@ -94,14 +94,20 @@ apiRouter.get('/puppets/:puppetId/mask', authenticate, async (req, res) => {
   try {
     console.log(`Checking mask existence for puppet: ${puppetId}`);
     
-    // Only check the masks bucket now
-    const maskPath = `${puppetId}-maskp.png`;
-    const [exists] = await masksBucket.file(maskPath).exists();
+    // Check for masks in the puppet's folder in the masks bucket
+    const maskPrefix = `${puppetId}/`;
+    const [files] = await masksBucket.getFiles({ prefix: maskPrefix });
     
-    console.log(`Mask for puppet ${puppetId} exists: ${exists}`);
+    const exists = files.length > 0;
+    console.log(`Mask for puppet ${puppetId} exists: ${exists} (found ${files.length} masks)`);
     
     if (exists) {
-      const [fileMetadata] = await masksBucket.file(maskPath).getMetadata();
+      // Sort files by name (timestamp) in descending order to get the latest
+      files.sort((a, b) => b.name.localeCompare(a.name));
+      const latestMask = files[0];
+      console.log(`Latest mask: ${latestMask.name}`);
+      
+      const [fileMetadata] = await latestMask.getMetadata();
       
       res.json({
         exists: true,
@@ -334,8 +340,11 @@ apiRouter.post('/puppets/:puppetId/mask', authenticate, async (req, res) => {
     });
     
     try {
-      // New format: <puppet_serial_number>-maskp.png
-      const maskPath = `${puppetId}-maskp.png`;
+      // Create timestamped filename in puppet folder: <puppetId>/<timestamp>_mask.png
+      const timestamp = new Date().toISOString().replace(/[-:.]/g, '');
+      const maskPath = `${puppetId}/${timestamp}_mask.png`;
+      console.log(`Saving mask to path: ${maskPath}`);
+      
       const file = masksBucket.file(maskPath);
       
       // Convert base64 data to buffer
@@ -347,6 +356,8 @@ apiRouter.post('/puppets/:puppetId/mask', authenticate, async (req, res) => {
         contentType: 'image/png',
         metadata: {
           contentType: 'image/png',
+          puppetId: puppetId,
+          createdAt: timestamp
         },
       });
       
@@ -402,8 +413,8 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
     });
     
     try {
-      // Only check the masks bucket now
-      const maskPath = `${puppetId}-maskp.png`;
+      // Check for masks in the puppet's folder
+      const maskPrefix = `${puppetId}/`;
       const tempDir = path.join(os.tmpdir(), 'mask-builder');
       const tempMaskPath = path.join(tempDir, `${puppetId}_mask.png`);
       
@@ -415,10 +426,10 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
         console.log('Created temp directory');
       }
       
-      // Check if the mask exists
-      const [exists] = await masksBucket.file(maskPath).exists();
+      // Find all masks for this puppet
+      const [files] = await masksBucket.getFiles({ prefix: maskPrefix });
       
-      if (!exists) {
+      if (files.length === 0) {
         console.log(`No existing mask found for puppet ${puppetId}`);
         const errorResult = { error: 'Mask not found' };
         // Don't reject the promise when sending a 404 response
@@ -427,9 +438,14 @@ apiRouter.get('/puppets/:puppetId/existing-mask', authenticate, async (req, res)
         return res.status(404).json(errorResult);
       }
       
+      // Sort files by name (timestamp) in descending order to get the latest
+      files.sort((a, b) => b.name.localeCompare(a.name));
+      const latestMask = files[0];
+      console.log(`Downloading latest mask: ${latestMask.name}`);
+      
       // Download the mask file
       console.log(`Downloading mask to: ${tempMaskPath}`);
-      await masksBucket.file(maskPath).download({ destination: tempMaskPath });
+      await latestMask.download({ destination: tempMaskPath });
       
       // Read the mask file and convert to base64
       const maskBuffer = fs.readFileSync(tempMaskPath);
