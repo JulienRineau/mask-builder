@@ -4,6 +4,7 @@
 // API service for accessing Google Cloud Storage through the backend
 const API_URL = '/api'; // This will be proxied to http://localhost:3001/api
 const BUCKET_NAME = 'zeroshot-database-prod-puppet-calibration';
+const MASKS_BUCKET_NAME = 'zeroshot-database-prod-masks';
 
 // Helper function to make API requests with auth
 const apiRequest = async (endpoint, options = {}) => {
@@ -16,17 +17,25 @@ const apiRequest = async (endpoint, options = {}) => {
     },
   };
   
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...defaultOptions,
-    ...options,
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || 'API request failed');
+  try {
+    console.log(`Making API request to: ${API_URL}${endpoint}`);
+    const response = await fetch(`${API_URL}${endpoint}`, {
+      ...defaultOptions,
+      ...options,
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      const errorText = errorData ? JSON.stringify(errorData) : await response.text();
+      console.error(`API request failed with status ${response.status}: ${errorText}`);
+      throw new Error(errorText || `API request failed with status ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    console.error(`API request error for ${endpoint}:`, error);
+    throw error;
   }
-  
-  return response.json();
 };
 
 // List puppets in the bucket
@@ -62,6 +71,17 @@ export const getVideoFrame = async (puppetId) => {
   }
 };
 
+// Get existing mask for a puppet
+export const getExistingMask = async (puppetId) => {
+  try {
+    return await apiRequest(`/puppets/${puppetId}/existing-mask`);
+  } catch (error) {
+    console.error(`Error getting existing mask for puppet ${puppetId}:`, error);
+    // Return null if no mask exists or on error
+    return null;
+  }
+};
+
 // Upload mask to storage
 export const uploadMask = async (puppetId, maskData) => {
   try {
@@ -69,7 +89,7 @@ export const uploadMask = async (puppetId, maskData) => {
       method: 'POST',
       body: JSON.stringify({ 
         maskData,
-        bucketName: BUCKET_NAME 
+        bucketName: MASKS_BUCKET_NAME 
       }),
     });
   } catch (error) {
@@ -106,8 +126,24 @@ const getMockMaskStatus = (puppetId) => {
 
 const getMockVideoFrame = (puppetId) => {
   console.warn(`Using mock video frame for ${puppetId} - API not available`);
+  
+  // Create a data URL for a simple 400x300 red rectangle as a placeholder image
+  const canvas = document.createElement('canvas');
+  canvas.width = 400;
+  canvas.height = 300;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#333333';
+  ctx.fillRect(0, 0, 400, 300);
+  
+  // Add text to the canvas 
+  ctx.fillStyle = 'white';
+  ctx.font = '20px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Mock Image for', 200, 130);
+  ctx.fillText(puppetId, 200, 160);
+  
   return {
-    frameUrl: 'https://picsum.photos/800/600',
+    frameData: canvas.toDataURL('image/png'),
     videoPath: `${puppetId}/camera/1234567890/camera_video.mp4`,
   };
 };
@@ -116,6 +152,6 @@ const getMockUploadResponse = (puppetId) => {
   console.warn(`Using mock upload response for ${puppetId} - API not available`);
   return {
     success: true,
-    url: `https://storage.googleapis.com/${BUCKET_NAME}/${puppetId}/camera/mask.png`,
+    url: `https://storage.googleapis.com/${MASKS_BUCKET_NAME}/${puppetId}-maskp.png`,
   };
 }; 

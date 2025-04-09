@@ -1,8 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import MaskEditor from './components/MaskEditor';
+import Login from './components/Login.jsx';
+import Dashboard from './components/Dashboard.jsx';
+import MaskEditor from './components/MaskEditor.jsx';
 import './App.css';
 
 function ProtectedRoute({ children }) {

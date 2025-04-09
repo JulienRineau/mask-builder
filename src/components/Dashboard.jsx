@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listPuppets, checkMaskExists } from '../services/storageService';
+import { listPuppets, checkMaskExists } from '../services/storageService.jsx';
 
 function Dashboard() {
   const [puppets, setPuppets] = useState([]);
