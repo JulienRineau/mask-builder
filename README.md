@@ -4,7 +4,7 @@ A React application for creating camera masks for specific camera and lens model
 
 ## Features
 
-- Google OAuth authentication for employee-only access
+- Simple password authentication for internal use
 - Connection to Google Cloud Storage bucket
 - List of puppets (cameras) with existing mask information
 - Mask editor with:
@@ -30,19 +30,25 @@ A React application for creating camera masks for specific camera and lens model
    npm install
    ```
 
-2. Create a `.env` file in the project root and add your Google OAuth client ID:
-   ```
-   REACT_APP_GOOGLE_CLIENT_ID=your-google-client-id-here
-   ```
+2. Create a service account key:
+   - Go to the Google Cloud Console: https://console.cloud.google.com/
+   - Navigate to "IAM & Admin" > "Service accounts"
+   - Create a new service account with the necessary permissions for the bucket
+   - Create a key for the service account (JSON format)
+   - Save the key file as `service-account-key.json` in the project root
 
 3. Start the development server:
    ```
    npm start
    ```
 
+## Authentication
+
+The app uses a simple password authentication system. The default password is `zeroshot`. This can be changed in the `Login.js` component.
+
 ## Usage
 
-1. Log in with your Google account
+1. Log in with the password
 2. Select a puppet from the dashboard
 3. Use the mask editor to create or edit a mask
 4. Save the mask to upload it to the Google Cloud bucket
@@ -51,7 +57,6 @@ A React application for creating camera masks for specific camera and lens model
 
 - Node.js and npm
 - Google Cloud service account with access to the bucket
-- Google OAuth client ID for authentication
 
 # Getting Started with Create React App
 

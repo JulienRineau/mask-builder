@@ -2,8 +2,27 @@ import { Storage } from '@google-cloud/storage';
 
 const BUCKET_NAME = 'zeroshot-database-prod-puppet-calibration';
 
-// Initialize storage client
-const storage = new Storage();
+// Initialize storage client with service account key
+// The key file should be placed in the public folder
+let storageConfig = {};
+
+try {
+  // In development, try to load the service account key
+  if (process.env.NODE_ENV === 'development') {
+    storageConfig = {
+      keyFilename: './service-account-key.json',
+    };
+  } else {
+    // In production, key might be provided through environment variables or other means
+    storageConfig = {
+      credentials: JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS || '{}'),
+    };
+  }
+} catch (error) {
+  console.error('Error loading service account key:', error);
+}
+
+const storage = new Storage(storageConfig);
 const bucket = storage.bucket(BUCKET_NAME);
 
 // List puppets in the bucket

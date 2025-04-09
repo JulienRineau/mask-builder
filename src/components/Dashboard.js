@@ -43,7 +43,7 @@ function Dashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('googleToken');
+    localStorage.removeItem('isAuthenticated');
     navigate('/login');
   };
 
